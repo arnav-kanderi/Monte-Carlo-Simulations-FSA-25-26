@@ -1,4 +1,4 @@
-# 🌯 Chipotle Monte Carlo Financial Model  
+#  Chipotle Monte Carlo Financial Model  
 ### Stochastic Financial Forecasting & Strategic Impact Simulation
 
 A high-fidelity Monte Carlo simulation modeling Chipotle’s financial trajectory under strategic business recommendations.  
@@ -44,7 +44,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-## 📈 Key Results
+## Key Results
 
 | Metric | Baseline | Strategy |
 |------|--------|----------|
@@ -56,7 +56,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-## 📊 Visualizations
+## Visualizations
 
 ### 1. Probability Curve — Strategy Outperformance
 ![Probability Curve](probability_curve.png)
@@ -122,7 +122,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-##  Why This Matters
+## Why This Matters
 
 This project demonstrates how **quantitative modeling can validate strategic business decisions** by:
 
