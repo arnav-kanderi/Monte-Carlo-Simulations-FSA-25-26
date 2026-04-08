@@ -1,4 +1,4 @@
-#  Chipotle Monte Carlo Financial Model  
+# 🌯 Chipotle Monte Carlo Financial Model  
 ### Stochastic Financial Forecasting & Strategic Impact Simulation
 
 A high-fidelity Monte Carlo simulation modeling Chipotle’s financial trajectory under strategic business recommendations.  
@@ -6,7 +6,7 @@ This project applies stochastic modeling, financial analysis, and data visualiza
 
 ---
 
-## Overview
+## 📊 Overview
 
 This model simulates **10,000+ potential financial outcomes** based on variability in:
 
@@ -19,7 +19,7 @@ The goal is to quantify how targeted recommendations — including international
 
 ---
 
-## Methodology
+## 🧮 Methodology
 
 We use a **Monte Carlo framework** to introduce randomness into key financial drivers:
 
@@ -44,7 +44,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-## Key Results
+## 📈 Key Results
 
 | Metric | Baseline | Strategy |
 |------|--------|----------|
@@ -56,7 +56,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-## Visualizations
+## 📊 Visualizations
 
 ### 1. Probability Curve — Strategy Outperformance
 ![Probability Curve](probability_curve.png)
@@ -112,7 +112,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-## Tech Stack
+## ⚙️ Tech Stack
 
 - Python  
 - NumPy  
@@ -122,7 +122,7 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 
 ---
 
-## Why This Matters
+## 🎯 Why This Matters
 
 This project demonstrates how **quantitative modeling can validate strategic business decisions** by:
 
@@ -132,7 +132,7 @@ This project demonstrates how **quantitative modeling can validate strategic bus
 
 ---
 
-## Future Improvements
+## 🚀 Future Improvements
 
 - Add discount rate → DCF valuation layer  
 - Incorporate macroeconomic variables (inflation, rates)  
@@ -141,14 +141,14 @@ This project demonstrates how **quantitative modeling can validate strategic bus
 
 ---
 
-## Authors
+## 👤 Authors
 
 **Arnav Kanderi**  
 Finance • Quantitative Modeling • Software Engineering  
 
 ---
 
-## Final Takeaway
+## ⭐ Final Takeaway
 
 > This is not just a projection — it’s a probabilistic view of the future.
 
