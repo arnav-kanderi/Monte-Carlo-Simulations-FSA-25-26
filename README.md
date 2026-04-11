@@ -59,7 +59,6 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 ## 📊 Visualizations
 
 ### 1. Probability Curve — Strategy Outperformance
-![Probability Curve](probability_curve.png)
 
 - Shows probability distribution of profit advantage  
 - Area under curve represents likelihood of strategy success  
@@ -68,7 +67,6 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 ---
 
 ### 2. Profit Distribution
-![Profit Distribution](profit_distribution.png)
 
 - Full distribution of simulated outcomes  
 - Strategy shifts mean profit significantly higher  
@@ -77,7 +75,6 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 ---
 
 ### 3. Revenue Growth Paths
-![Revenue Paths](revenue_paths.png)
 
 - Median trajectory comparison  
 - Strategy accelerates compounding growth  
@@ -86,7 +83,6 @@ We use a **Monte Carlo framework** to introduce randomness into key financial dr
 ---
 
 ### 4. Value Creation Breakdown
-![Value Breakdown](value_creation_breakdown.png)
 
 - Decomposes profit uplift drivers:
   - International Expansion  
