@@ -85,10 +85,18 @@ BASELINE_FILL = "#A86642"
 PANEL = "#F0E7DA"
 GREEN = "#3F6F37"
 ORANGE = "#D86A32"
+FONT_FAMILY = [
+    "Avenir Next",
+    "Avenir",
+    "Helvetica Neue",
+    "Helvetica",
+    "Arial",
+    "sans-serif",
+]
 
 plt.rcParams.update(
     {
-        "font.family": "DejaVu Sans",
+        "font.family": FONT_FAMILY,
         "figure.facecolor": BG,
         "axes.facecolor": BG,
         "axes.edgecolor": BROWN,
@@ -99,13 +107,14 @@ plt.rcParams.update(
         "ytick.color": BROWN,
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "axes.titleweight": "bold",
+        "axes.titleweight": "semibold",
         "axes.titlesize": 15,
         "axes.labelsize": 11,
         "grid.color": GRID,
         "grid.alpha": 0.38,
         "grid.linewidth": 0.65,
         "font.size": 11,
+        "font.weight": "regular",
         "legend.facecolor": BG,
         "legend.edgecolor": GRID,
         "legend.framealpha": 0.95,
@@ -339,7 +348,7 @@ def add_value_label(ax, x, y, text, color, xytext=(0, 14), ha="center"):
         ha=ha,
         va="bottom",
         fontsize=10,
-        fontweight="bold",
+        fontweight="semibold",
         color=color,
         bbox={"facecolor": BG, "edgecolor": GRID, "boxstyle": "round,pad=0.3"},
     )
@@ -437,7 +446,7 @@ def save_revenue_graph(base_rev, strat_rev):
         f"+${uplift:.1f}B revenue uplift",
         transform=ax.transAxes,
         fontsize=12,
-        fontweight="bold",
+        fontweight="semibold",
         color=RED,
         bbox={
             "facecolor": "#FFF9EF",
@@ -453,7 +462,7 @@ def save_revenue_graph(base_rev, strat_rev):
     ax.set_ylabel("Revenue")
     ax.set_ylim(0, max(strat_p90) * 1.12)
     ax.legend(ncol=2, loc="upper left")
-    fig.suptitle("MONTE CARLO SIMULATION  |  10,000 RUNS", fontsize=18, fontweight="bold", color=BROWN, y=0.98)
+    fig.suptitle("Monte Carlo Simulation  |  10,000 Runs", fontsize=18, fontweight="semibold", color=BROWN, y=0.98)
     fig.tight_layout()
     fig.savefig("revenue_paths.png", dpi=300)
     plt.close(fig)
@@ -539,7 +548,7 @@ def save_profit_graph(base_op, strat_op):
         ha="center",
         va="center",
         fontsize=11,
-        fontweight="bold",
+        fontweight="semibold",
         color=BASELINE,
         bbox={
             "facecolor": BG,
@@ -555,7 +564,7 @@ def save_profit_graph(base_op, strat_op):
         ha="center",
         va="center",
         fontsize=11,
-        fontweight="bold",
+        fontweight="semibold",
         color=RED,
         bbox={
             "facecolor": BG,
@@ -580,10 +589,10 @@ def save_profit_graph(base_op, strat_op):
         ha="right",
         va="top",
         fontsize=12,
-        fontweight="bold",
+        fontweight="semibold",
         color=BROWN,
         linespacing=1.55,
-        family="DejaVu Sans Mono",
+        family=FONT_FAMILY[0],
         bbox={
             "facecolor": "#FFF9EF",
             "edgecolor": GRID,
@@ -599,9 +608,9 @@ def save_profit_graph(base_op, strat_op):
     ax.set_ylim(0, y_top)
     ax.set_xlim(min(base_y5.min(), strat_y5.min()) - 0.25, max(base_y5.max(), strat_y5.max()) + 0.40)
     fig.suptitle(
-        "PROFIT DISTRIBUTION  |  BASELINE VS STRATEGY",
+        "Profit Distribution  |  Baseline vs Strategy",
         fontsize=20,
-        fontweight="bold",
+        fontweight="semibold",
         color=BROWN,
         y=0.982,
     )
@@ -612,7 +621,7 @@ def save_profit_graph(base_op, strat_op):
 
 def save_ev_graph(base_ev, strat_ev, base_price, strat_price, base_fcf, strat_fcf):
     fig, axes = plt.subplots(1, 2, figsize=(18, 7.2), gridspec_kw={"wspace": 0.32})
-    fig.suptitle("DCF VALUATION BRIDGE", fontsize=22, fontweight="bold", color=BROWN, y=0.985)
+    fig.suptitle("DCF Valuation Bridge", fontsize=22, fontweight="semibold", color=BROWN, y=0.985)
 
     ax = axes[0]
     setup_axis(ax)
@@ -622,8 +631,8 @@ def save_ev_graph(base_ev, strat_ev, base_price, strat_price, base_fcf, strat_fc
     draw_3d_barh(ax, y_positions[0], values[0], bar_h, BASELINE, "#4F2518", BASELINE_LIGHT, EDGE)
     draw_3d_barh(ax, y_positions[1], values[1], bar_h, RED, "#7A261F", RED_LIGHT, EDGE)
 
-    ax.text(values[0] + 2.5, y_positions[0], f"${values[0]:.1f}B", va="center", color=BASELINE, fontweight="bold", fontsize=12)
-    ax.text(values[1] + 2.5, y_positions[1], f"${values[1]:.1f}B", va="center", color=RED, fontweight="bold", fontsize=12)
+    ax.text(values[0] + 2.5, y_positions[0], f"${values[0]:.1f}B", va="center", color=BASELINE, fontweight="semibold", fontsize=12)
+    ax.text(values[1] + 2.5, y_positions[1], f"${values[1]:.1f}B", va="center", color=RED, fontweight="semibold", fontsize=12)
 
     uplift = values[1] - values[0]
     uplift_pct = pct_change(values[1], values[0])
@@ -641,7 +650,7 @@ def save_ev_graph(base_ev, strat_ev, base_price, strat_price, base_fcf, strat_fc
         ha="center",
         va="bottom",
         color=BASELINE,
-        fontweight="bold",
+        fontweight="semibold",
         fontsize=11,
     )
     ax.text(
@@ -658,7 +667,7 @@ def save_ev_graph(base_ev, strat_ev, base_price, strat_price, base_fcf, strat_fc
     ax.set_xlim(0, max(values) * 1.25)
     ax.set_ylim(-0.55, 1.75)
     ax.xaxis.set_major_formatter(mtick.FuncFormatter(lambda val, _: f"${val:.0f}B"))
-    ax.set_title("ENTERPRISE VALUE COMPARISON", fontsize=13, pad=14)
+    ax.set_title("Enterprise Value Comparison", fontsize=13, pad=14)
     ax.grid(True, axis="x", color=GRID, alpha=0.30, linewidth=0.6)
     ax.grid(False, axis="y")
 
@@ -679,7 +688,7 @@ def save_ev_graph(base_ev, strat_ev, base_price, strat_price, base_fcf, strat_fc
     glow_line(ax, x, fcf_s_med, RED, "Strategy FCF")
     ax.set_xticks(x, labels)
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda val, _: f"${val:.1f}B"))
-    ax.set_title("FREE CASH FLOW TRAJECTORY", fontsize=13, pad=14)
+    ax.set_title("Free Cash Flow Trajectory", fontsize=13, pad=14)
     ax.legend(loc="upper left")
     ax.set_ylim(max(0, min(fcf_b_p10.min(), fcf_s_p10.min()) * 0.75), max(fcf_s_p90) * 1.08)
     ax.grid(True, color=GRID, alpha=0.30, linewidth=0.6)
@@ -694,7 +703,7 @@ def save_summary_graph(base, strat, base_ev, strat_ev):
     strat_rev, strat_op, _, strat_fcf = strat
 
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
-    fig.suptitle("CHIPOTLE MONTE CARLO + DCF RESULTS", fontsize=22, fontweight="bold", color=BROWN, y=0.992)
+    fig.suptitle("Chipotle Monte Carlo + DCF Results", fontsize=22, fontweight="semibold", color=BROWN, y=0.992)
     fig.text(
         0.5,
         0.948,
@@ -752,7 +761,7 @@ def save_summary_graph(base, strat, base_ev, strat_ev):
                 ha="center",
                 va="bottom",
                 fontsize=9,
-                fontweight="bold",
+                fontweight="semibold",
                 color=BROWN,
             )
     ax.set_xticks(x, metrics)
@@ -779,7 +788,7 @@ def save_summary_graph(base, strat, base_ev, strat_ev):
         )
         bottoms += values
     for year, total in zip(YEARS, bottoms):
-        ax.text(year, total + max(bottoms) * 0.035, f"${total:.1f}B", ha="center", fontweight="bold", fontsize=10)
+        ax.text(year, total + max(bottoms) * 0.035, f"${total:.1f}B", ha="center", fontweight="semibold", fontsize=10)
     ax.set_title("Revenue Uplift Attribution")
     ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda val, _: f"${val:.1f}B"))
     ax.grid(True, axis="y")
@@ -799,7 +808,7 @@ def save_summary_graph(base, strat, base_ev, strat_ev):
         f"{(profit_advantage > 0).mean():.1%} chance strategy profit beats baseline",
         transform=ax.transAxes,
         fontsize=11,
-        fontweight="bold",
+        fontweight="semibold",
         color=RED,
         bbox={"facecolor": BG, "edgecolor": GRID, "boxstyle": "round,pad=0.4"},
     )
@@ -833,11 +842,11 @@ def save_summary_graph(base, strat, base_ev, strat_ev):
         cell.set_edgecolor(GRID)
         if row == 0:
             cell.set_facecolor(BROWN)
-            cell.set_text_props(color="white", fontweight="bold")
+            cell.set_text_props(color="white", fontweight="semibold")
         else:
             cell.set_facecolor(BG)
-            cell.set_text_props(color=BROWN, fontweight="bold" if col == 1 else "normal")
-    ax.set_title("Final Effects", fontweight="bold")
+            cell.set_text_props(color=BROWN, fontweight="semibold" if col == 1 else "normal")
+    ax.set_title("Final Effects", fontweight="semibold")
 
     fig.tight_layout(rect=[0, 0, 1, 0.92])
     fig.savefig("final_results_summary.png", dpi=300)
