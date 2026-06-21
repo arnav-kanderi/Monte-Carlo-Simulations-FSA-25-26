@@ -61,6 +61,29 @@ DCF_PARAMS = {
     "debt_b": 0.000,
 }
 
+# Verified company-wide 2024 average restaurant sales. Chipotle does not
+# disclose separate UK, Germany, and Canada AUVs, so the international
+# comparison is intentionally an illustrative indexed estimate.
+INTERNATIONAL_UNIT_REVENUE_ASSUMPTIONS = {
+    "domestic_benchmark_m": 3.213,
+    "country_indices": {"Canada": 1.00, "UK": 0.75, "Germany": 0.70},
+}
+
+# Illustrative annual economics on average outstanding stored-value balances.
+FLOAT_MODEL_ASSUMPTIONS = {
+    "interest_rate": 0.04,
+    "breakage_rate": 0.08,
+    "min_balance_m": 10,
+    "max_balance_m": 500,
+}
+
+# Split-adjusted CMG annual OHLC data from Yahoo Finance, downloaded 2026-06-20.
+# The 2026 candle is year-to-date through the 2026-06-18 market close.
+ACTUAL_SHARE_PRICES = {
+    2025: {"open": 60.79, "high": 61.16, "low": 29.75, "close": 37.00},
+    2026: {"open": 37.25, "high": 41.42, "low": 28.04, "close": 32.49},
+}
+
 # OLS coefficients used by the notebook model.
 INTERCEPT_A = -1.3892
 BETA1_A = 31.8584
@@ -238,6 +261,36 @@ def dcf_enterprise_value(fcf_array):
     ] * 1000
     price_per_share = (equity_value_m / 1000) / DCF_PARAMS["shares_out_b"]
     return enterprise_value_m / 1000, equity_value_m / 1000, price_per_share
+
+
+def dcf_price_by_horizon(fcf_array):
+    """Return implied per-share values using each forecast year as the DCF horizon."""
+    wacc = DCF_PARAMS["wacc"]
+    terminal_growth = DCF_PARAMS["terminal_growth"]
+    prices = np.zeros((fcf_array.shape[0], N_YEARS))
+
+    for horizon in range(1, N_YEARS + 1):
+        discount_factors = np.array(
+            [1 / (1 + wacc) ** year for year in range(1, horizon + 1)]
+        )
+        pv_fcfs = (fcf_array[:, :horizon] * discount_factors).sum(axis=1)
+        terminal_value = (
+            fcf_array[:, horizon - 1]
+            * (1 + terminal_growth)
+            / (wacc - terminal_growth)
+        )
+        pv_terminal = terminal_value / (1 + wacc) ** horizon
+        equity_value_m = (
+            pv_fcfs
+            + pv_terminal
+            + DCF_PARAMS["cash_b"] * 1000
+            - DCF_PARAMS["debt_b"] * 1000
+        )
+        prices[:, horizon - 1] = (
+            equity_value_m / 1000 / DCF_PARAMS["shares_out_b"]
+        )
+
+    return prices
 
 
 def fixed_baseline_fcf():
@@ -418,6 +471,224 @@ def print_results(base, strat, base_ev, strat_ev, base_price, strat_price):
 # -----------------------------
 # Graphs
 # -----------------------------
+
+def save_international_expansion_chart():
+    palette = {
+        "maroon": "#3A1205",
+        "red": "#C0392B",
+        "cream": "#F5EFE6",
+        "gold": "#D4A843",
+        "brown": "#7A3F28",
+        "grid": "#DED2C3",
+    }
+    assumptions = INTERNATIONAL_UNIT_REVENUE_ASSUMPTIONS
+    domestic = assumptions["domestic_benchmark_m"]
+    country_indices = assumptions["country_indices"]
+    international_index = np.mean(list(country_indices.values()))
+    international_estimate = domestic * international_index
+
+    fig, ax = plt.subplots(figsize=(12.8, 7.6), facecolor=palette["cream"])
+    ax.set_facecolor(palette["cream"])
+    labels = [
+        "U.S.-dominant 2024\ncompany benchmark*",
+        "International store\nillustrative composite**",
+    ]
+    values = [domestic, international_estimate]
+    colors = [palette["maroon"], palette["red"]]
+    bars = ax.bar(
+        np.arange(2),
+        values,
+        width=0.54,
+        color=colors,
+        edgecolor=palette["maroon"],
+        linewidth=1.3,
+        zorder=3,
+    )
+
+    for bar, value, color, qualifier in zip(
+        bars,
+        values,
+        colors,
+        ["Official company average", "Illustrative estimate"],
+    ):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            value + 0.10,
+            f"${value:.2f}M",
+            ha="center",
+            va="bottom",
+            fontsize=15,
+            fontweight="semibold",
+            color=color,
+        )
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            value - 0.16,
+            qualifier,
+            ha="center",
+            va="top",
+            fontsize=9.5,
+            fontweight="semibold",
+            color=palette["cream"],
+        )
+
+    ax.text(
+        1,
+        international_estimate * 0.49,
+        f"{international_index:.1%} of benchmark\n"
+        "Canada 100%  |  UK 75%  |  Germany 70%",
+        ha="center",
+        va="center",
+        fontsize=10,
+        fontweight="semibold",
+        color=palette["cream"],
+        linespacing=1.45,
+    )
+    ax.set_xticks(np.arange(2), labels)
+    ax.set_ylim(0, 3.85)
+    ax.yaxis.set_major_locator(mtick.MultipleLocator(0.5))
+    ax.yaxis.set_major_formatter(mtick.StrMethodFormatter("${x:.1f}M"))
+    ax.set_ylabel("Average annual unit revenue")
+    ax.grid(True, axis="y", color=palette["grid"], alpha=0.42, linewidth=0.7)
+    ax.grid(False, axis="x")
+    ax.tick_params(length=0, colors=palette["maroon"])
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color(palette["maroon"])
+    ax.spines["bottom"].set_color(palette["maroon"])
+    ax.set_title("Domestic Benchmark vs International Composite", pad=18)
+    fig.suptitle(
+        "International Expansion Comparison",
+        fontsize=21,
+        fontweight="semibold",
+        color=palette["maroon"],
+        y=0.985,
+    )
+    fig.text(
+        0.5,
+        0.055,
+        "* Chipotle reports $3.213M company-wide average restaurant sales for 2024; it does not disclose a U.S.-only figure.\n"
+        "** International figure is an illustrative equal-weight composite estimate, not an official disclosed figure.",
+        ha="center",
+        va="bottom",
+        fontsize=9.5,
+        color="#7A3F28",
+        linespacing=1.45,
+    )
+    fig.tight_layout(rect=[0.04, 0.13, 0.98, 0.93])
+    fig.savefig("international_expansion_comparison.png", dpi=300)
+    plt.close(fig)
+
+
+def save_burrito_bank_float_chart():
+    palette = {
+        "maroon": "#3A1205",
+        "red": "#C0392B",
+        "cream": "#F5EFE6",
+        "gold": "#D4A843",
+        "brown": "#7A3F28",
+        "grid": "#DED2C3",
+    }
+    assumptions = FLOAT_MODEL_ASSUMPTIONS
+    balances = np.linspace(
+        assumptions["min_balance_m"], assumptions["max_balance_m"], 160
+    )
+    interest = balances * assumptions["interest_rate"]
+    breakage = balances * assumptions["breakage_rate"]
+    total = interest + breakage
+
+    fig, ax = plt.subplots(figsize=(13.5, 7.8), facecolor=palette["cream"])
+    ax.set_facecolor(palette["cream"])
+    ax.fill_between(
+        balances,
+        0,
+        interest,
+        color=palette["brown"],
+        alpha=0.86,
+        label=f"Interest earned ({assumptions['interest_rate']:.0%})",
+        zorder=2,
+    )
+    ax.fill_between(
+        balances,
+        interest,
+        total,
+        color=palette["red"],
+        alpha=0.82,
+        label=f"Breakage revenue ({assumptions['breakage_rate']:.0%})",
+        zorder=2,
+    )
+    ax.plot(balances, interest, color=palette["maroon"], linewidth=1.7, zorder=3)
+    ax.plot(balances, total, color=palette["maroon"], linewidth=2.6, zorder=4)
+
+    scenarios = np.array([10, 100, 250, 500])
+    scenario_totals = scenarios * (
+        assumptions["interest_rate"] + assumptions["breakage_rate"]
+    )
+    ax.scatter(
+        scenarios,
+        scenario_totals,
+        s=58,
+        color=palette["maroon"],
+        edgecolor=palette["cream"],
+        linewidth=1.6,
+        zorder=5,
+    )
+    for balance, revenue in zip(scenarios, scenario_totals):
+        offset_x = 9 if balance < 500 else -9
+        align = "left" if balance < 500 else "right"
+        ax.annotate(
+            f"${revenue:.1f}M",
+            xy=(balance, revenue),
+            xytext=(offset_x, 22),
+            textcoords="offset points",
+            ha=align,
+            va="bottom",
+            fontsize=10,
+            fontweight="semibold",
+            color=palette["maroon"],
+            zorder=6,
+        )
+
+    ax.set_xlim(10, 500)
+    ax.set_ylim(0, total.max() * 1.14)
+    ax.set_xticks([10, 100, 200, 300, 400, 500])
+    ax.xaxis.set_major_formatter(mtick.StrMethodFormatter("${x:.0f}M"))
+    ax.get_xticklabels()[0].set_ha("left")
+    ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
+    ax.yaxis.set_major_formatter(mtick.StrMethodFormatter("${x:.0f}M"))
+    ax.set_xlabel("Average outstanding loaded balance")
+    ax.set_ylabel("Modeled annual float revenue")
+    ax.grid(True, color=palette["grid"], alpha=0.42, linewidth=0.7)
+    ax.tick_params(length=0, colors=palette["maroon"])
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color(palette["maroon"])
+    ax.spines["bottom"].set_color(palette["maroon"])
+    ax.legend(loc="upper left", frameon=True)
+    ax.set_title(
+        f"Modeled Revenue Build  |  {assumptions['interest_rate']:.0%} Interest + "
+        f"{assumptions['breakage_rate']:.0%} Breakage",
+        pad=18,
+    )
+    fig.suptitle(
+        "Burrito Bank Float Revenue",
+        fontsize=21,
+        fontweight="semibold",
+        color=palette["maroon"],
+        y=0.985,
+    )
+    fig.text(
+        0.5,
+        0.035,
+        "Illustrative model only. Assumptions: 4% annual interest return and 8% breakage; neither is a disclosed Chipotle figure.",
+        ha="center",
+        fontsize=9.5,
+        color="#7A3F28",
+    )
+    fig.tight_layout(rect=[0.03, 0.07, 0.98, 0.93])
+    fig.savefig("burrito_bank_float_revenue.png", dpi=300)
+    plt.close(fig)
+
 
 def save_revenue_graph(base_rev, strat_rev):
     fig, ax = plt.subplots(figsize=(13, 7.4))
@@ -616,6 +887,532 @@ def save_profit_graph(base_op, strat_op):
     )
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig("profit_distribution.png", dpi=300)
+    plt.close(fig)
+
+
+def save_probability_curve(
+    base_op,
+    strat_op,
+    filename="probability_curve.png",
+    figsize=(13.5, 7.6),
+):
+    base_y5 = base_op[:, -1] / 1000
+    strat_y5 = strat_op[:, -1] / 1000
+    profit_advantage = strat_y5 - base_y5
+
+    x_max = np.ceil(np.percentile(profit_advantage, 99.8) * 2) / 2
+    thresholds = np.linspace(0, x_max, 600)
+    probabilities = np.array(
+        [(profit_advantage > threshold).mean() for threshold in thresholds]
+    )
+
+    median_advantage = np.median(profit_advantage)
+
+    fig, ax = plt.subplots(figsize=figsize)
+    setup_axis(ax)
+
+    ax.fill_between(
+        thresholds,
+        probabilities,
+        color=RED,
+        alpha=0.16,
+        zorder=2,
+    )
+    for linewidth, alpha in [(12, 0.035), (7, 0.07), (3.5, 0.14)]:
+        ax.plot(
+            thresholds,
+            probabilities,
+            color=RED,
+            linewidth=linewidth,
+            alpha=alpha,
+            zorder=3,
+        )
+    ax.plot(
+        thresholds,
+        probabilities,
+        color=RED,
+        linewidth=3.0,
+        zorder=4,
+    )
+
+    median_probability = (profit_advantage > median_advantage).mean()
+    ax.axvline(
+        median_advantage,
+        color=BASELINE,
+        linewidth=1.4,
+        linestyle=(0, (4, 4)),
+        alpha=0.75,
+        zorder=1,
+    )
+    ax.axhline(
+        median_probability,
+        color=BASELINE,
+        linewidth=1.4,
+        linestyle=(0, (4, 4)),
+        alpha=0.75,
+        xmax=median_advantage / x_max,
+        zorder=1,
+    )
+    ax.scatter(
+        [median_advantage],
+        [median_probability],
+        s=72,
+        color=RED,
+        edgecolor=BG,
+        linewidth=2,
+        zorder=5,
+    )
+
+    ax.set_xlim(0, x_max)
+    ax.set_ylim(0, 1.035)
+    ax.xaxis.set_major_locator(mtick.MaxNLocator(7))
+    ax.xaxis.set_major_formatter(mtick.FuncFormatter(lambda val, _: f"${val:.1f}B"))
+    ax.yaxis.set_major_locator(mtick.MultipleLocator(0.2))
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0, decimals=0))
+    ax.set_title("Probability of Exceeding Each Profit Advantage", pad=18)
+    ax.set_xlabel("2029 strategy operating-profit advantage over baseline")
+    ax.set_ylabel("Probability strategy exceeds threshold")
+    fig.suptitle(
+        "Operating Profit Probability Curve",
+        fontsize=21,
+        fontweight="semibold",
+        color=BROWN,
+        y=0.982,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig(filename, dpi=300)
+    plt.close(fig)
+
+
+def save_outcome_scorecard(base, strat, base_ev, strat_ev):
+    base_rev, base_op, _, _ = base
+    strat_rev, strat_op, _, _ = strat
+    labels = ["Revenue", "Operating profit", "Enterprise value"]
+    probabilities = np.array(
+        [
+            (strat_rev[:, -1] > base_rev[:, -1]).mean(),
+            (strat_op[:, -1] > base_op[:, -1]).mean(),
+            (strat_ev > base_ev).mean(),
+        ]
+    )
+
+    fig, ax = plt.subplots(figsize=(12.5, 7.2))
+    ax.set_facecolor(BG)
+    y = np.arange(len(labels))
+
+    ax.barh(y, 1, height=0.42, color=PANEL, edgecolor=GRID, linewidth=1.0)
+    bars = ax.barh(
+        y,
+        probabilities,
+        height=0.42,
+        color=[RED, BASELINE, GREEN],
+        edgecolor=EDGE,
+        linewidth=1.0,
+        zorder=3,
+    )
+    for bar, probability in zip(bars, probabilities):
+        ax.text(
+            probability - 0.018,
+            bar.get_y() + bar.get_height() / 2,
+            f"{probability:.1%}",
+            ha="right",
+            va="center",
+            color="white",
+            fontsize=15,
+            fontweight="semibold",
+            zorder=4,
+        )
+
+    ax.axvline(0.5, color=BASELINE_LIGHT, linewidth=1.2, linestyle=(0, (4, 4)))
+    ax.set_yticks(y, labels)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 1)
+    ax.xaxis.set_major_locator(mtick.MultipleLocator(0.2))
+    ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0, decimals=0))
+    ax.set_xlabel("Probability strategy outperforms baseline in 2029")
+    ax.grid(True, axis="x", color=GRID, alpha=0.42, linewidth=0.7)
+    ax.grid(False, axis="y")
+    ax.tick_params(length=0, pad=8)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_title("Confidence Across the Three Core Outcomes", pad=18)
+    fig.suptitle(
+        "Strategy Outcome Scorecard",
+        fontsize=21,
+        fontweight="semibold",
+        color=BROWN,
+        y=0.98,
+    )
+    fig.tight_layout(rect=[0.03, 0.02, 0.98, 0.92])
+    fig.savefig("outcome_scorecard.png", dpi=300)
+    plt.close(fig)
+
+
+def save_strategy_waterfall(base_rev, strat_rev):
+    baseline = np.median(base_rev[:, -1]) / 1000
+    strategy = np.median(strat_rev[:, -1]) / 1000
+    uplift = strategy - baseline
+    solution_items = list(SOLUTIONS.values())
+    contributions = np.array([solution["weight"] * uplift for solution in solution_items])
+    labels = [
+        "Baseline\nrevenue",
+        "Subscription",
+        "Stored-value\nfloat",
+        "International\nexpansion",
+        "Strategy\nrevenue",
+    ]
+    x = np.arange(len(labels))
+    bottoms = np.array(
+        [
+            0,
+            baseline,
+            baseline + contributions[0],
+            baseline + contributions[0] + contributions[1],
+            0,
+        ]
+    )
+    heights = np.concatenate([[baseline], contributions, [strategy]])
+    colors = [BASELINE, "#B45542", "#8E4933", "#D76557", RED]
+    top_colors = [BASELINE_LIGHT, "#D87B68", "#B66D50", "#F18A7C", RED_LIGHT]
+
+    fig, ax = plt.subplots(figsize=(13.5, 7.6))
+    setup_axis(ax)
+    bars = ax.bar(
+        x,
+        heights,
+        bottom=bottoms,
+        width=0.58,
+        color=colors,
+        edgecolor=EDGE,
+        linewidth=1.2,
+        zorder=3,
+    )
+    for bar, top_color in zip(bars, top_colors):
+        top = bar.get_y() + bar.get_height()
+        ax.plot(
+            [bar.get_x(), bar.get_x() + bar.get_width()],
+            [top, top],
+            color=top_color,
+            linewidth=2.0,
+            solid_capstyle="round",
+            zorder=4,
+        )
+
+    running_totals = [baseline]
+    for contribution in contributions:
+        running_totals.append(running_totals[-1] + contribution)
+    for idx in range(len(running_totals) - 1):
+        ax.plot(
+            [x[idx] + 0.29, x[idx + 1] - 0.29],
+            [running_totals[idx], running_totals[idx]],
+            color=EDGE,
+            linewidth=1.0,
+            linestyle=(0, (4, 4)),
+            alpha=0.60,
+            zorder=2,
+        )
+    ax.plot(
+        [x[3] + 0.29, x[4] - 0.29],
+        [strategy, strategy],
+        color=EDGE,
+        linewidth=1.0,
+        linestyle=(0, (4, 4)),
+        alpha=0.60,
+        zorder=2,
+    )
+
+    for idx, (bar, value) in enumerate(zip(bars, heights)):
+        label = f"${value:.2f}B" if idx in (0, 4) else f"+${value:.2f}B"
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_y() + bar.get_height() + 0.42,
+            label,
+            ha="center",
+            va="bottom",
+            fontsize=10.5,
+            fontweight="semibold",
+            color=colors[idx],
+        )
+
+    ax.set_xticks(x, labels)
+    ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda val, _: f"${val:.0f}B"))
+    ax.set_ylabel("2029 median revenue")
+    ax.set_ylim(0, strategy * 1.16)
+    ax.grid(True, axis="y", color=GRID, alpha=0.38, linewidth=0.65)
+    ax.grid(False, axis="x")
+    ax.set_title(
+        f"2029 Median Revenue Build  |  +${uplift:.2f}B (+{uplift / baseline:.1%})",
+        pad=18,
+    )
+    fig.suptitle(
+        "Strategy Contribution Waterfall",
+        fontsize=21,
+        fontweight="semibold",
+        color=BROWN,
+        y=0.982,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig("strategy_contribution_waterfall.png", dpi=300)
+    plt.close(fig)
+
+
+def save_margin_expansion_graph(base_rev, base_op, strat_rev, strat_op):
+    initial_margin = ML_PARAMS["initial_op_income"] / ML_PARAMS["initial_revenue"] * 100
+    base_margins = base_op / base_rev * 100
+    strat_margins = strat_op / strat_rev * 100
+    x = np.arange(N_YEARS + 1)
+    labels = ["2024", "2025", "2026", "2027", "2028", "2029"]
+
+    def margin_series(values, percentile):
+        return np.concatenate([[initial_margin], np.percentile(values, percentile, axis=0)])
+
+    base_med = margin_series(base_margins, 50)
+    base_p10 = margin_series(base_margins, 10)
+    base_p90 = margin_series(base_margins, 90)
+    strat_med = margin_series(strat_margins, 50)
+    strat_p10 = margin_series(strat_margins, 10)
+    strat_p90 = margin_series(strat_margins, 90)
+
+    fig, ax = plt.subplots(figsize=(13.5, 7.6))
+    setup_axis(ax)
+    ax.fill_between(x, base_p10, base_p90, color=BASELINE_FILL, alpha=0.14)
+    ax.fill_between(x, strat_p10, strat_p90, color=RED, alpha=0.13)
+    glow_line(ax, x, base_med, BASELINE, "Baseline median")
+    glow_line(ax, x, strat_med, RED, "Strategy median")
+
+    add_value_label(
+        ax,
+        x[-1],
+        base_med[-1],
+        f"{base_med[-1]:.1f}%",
+        BASELINE,
+        xytext=(14, -7),
+        ha="left",
+    )
+    add_value_label(
+        ax,
+        x[-1],
+        strat_med[-1],
+        f"{strat_med[-1]:.1f}%",
+        RED,
+        xytext=(14, -7),
+        ha="left",
+    )
+    expansion = strat_med[-1] - base_med[-1]
+    ax.text(
+        0.63,
+        0.78,
+        f"+{expansion:.1f} percentage points",
+        transform=ax.transAxes,
+        fontsize=12,
+        fontweight="semibold",
+        color=RED,
+        bbox={
+            "facecolor": "#FFF9EF",
+            "edgecolor": RED,
+            "linewidth": 1.1,
+            "boxstyle": "round,pad=0.40",
+        },
+    )
+
+    ax.set_xticks(x, labels)
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter(100, decimals=0))
+    ax.set_ylabel("Operating margin")
+    ax.set_ylim(
+        max(0, min(base_p10.min(), strat_p10.min()) - 2),
+        min(32, max(base_p90.max(), strat_p90.max()) + 2),
+    )
+    ax.legend(loc="upper left", ncol=2)
+    ax.set_title("Median Margin Path with P10-P90 Simulation Range", pad=18)
+    fig.suptitle(
+        "Operating Margin Expansion",
+        fontsize=21,
+        fontweight="semibold",
+        color=BROWN,
+        y=0.982,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig("operating_margin_expansion.png", dpi=300)
+    plt.close(fig)
+
+
+def save_intrinsic_value_candlestick(strat_fcf, base_price):
+    horizon_prices = dcf_price_by_horizon(strat_fcf)
+    percentiles = np.percentile(horizon_prices, [10, 25, 50, 75, 90], axis=0)
+    p10, p25, p50_values, p75, p90 = percentiles
+    x = np.arange(N_YEARS)
+
+    chart_bg = BG
+    axes_bg = BG
+    chart_text = BROWN
+    chart_grid = GRID
+    candle_fill = RED
+    candle_edge = RED_LIGHT
+    baseline_color = BASELINE
+    actual_fill = BASELINE
+    actual_edge = BASELINE_LIGHT
+
+    fig, ax = plt.subplots(figsize=(14, 8), facecolor=chart_bg)
+    ax.set_facecolor(axes_bg)
+    candle_width = 0.56
+
+    actual_years = [2025, 2026]
+    actual_x = x[:2]
+    actual_open = np.array([ACTUAL_SHARE_PRICES[year]["open"] for year in actual_years])
+    actual_high = np.array([ACTUAL_SHARE_PRICES[year]["high"] for year in actual_years])
+    actual_low = np.array([ACTUAL_SHARE_PRICES[year]["low"] for year in actual_years])
+    actual_close = np.array([ACTUAL_SHARE_PRICES[year]["close"] for year in actual_years])
+    actual_bottom = np.minimum(actual_open, actual_close)
+    actual_height = np.abs(actual_close - actual_open)
+
+    ax.vlines(actual_x, actual_low, actual_high, color=actual_edge, linewidth=2.2, zorder=3)
+    ax.scatter(actual_x, actual_low, s=25, color=actual_edge, zorder=4)
+    ax.scatter(actual_x, actual_high, s=25, color=actual_edge, zorder=4)
+    ax.bar(
+        actual_x,
+        actual_height,
+        bottom=actual_bottom,
+        width=candle_width,
+        color=actual_fill,
+        edgecolor=actual_edge,
+        linewidth=1.8,
+        alpha=0.90,
+        zorder=4,
+    )
+
+    forecast_x = x[2:]
+    ax.vlines(forecast_x, p10[2:], p90[2:], color=candle_edge, linewidth=2.2, zorder=3)
+    ax.scatter(forecast_x, p10[2:], s=25, color=candle_edge, zorder=4)
+    ax.scatter(forecast_x, p90[2:], s=25, color=candle_edge, zorder=4)
+    ax.bar(
+        forecast_x,
+        p75[2:] - p25[2:],
+        bottom=p25[2:],
+        width=candle_width,
+        color=candle_fill,
+        edgecolor=candle_edge,
+        linewidth=1.8,
+        alpha=0.88,
+        zorder=4,
+    )
+    for year_x, median in zip(forecast_x, p50_values[2:]):
+        ax.hlines(
+            median,
+            year_x - candle_width / 2,
+            year_x + candle_width / 2,
+            color=chart_text,
+            linewidth=2.4,
+            zorder=5,
+        )
+    ax.plot(
+        np.concatenate([[x[1]], forecast_x]),
+        np.concatenate([[actual_close[-1]], p50_values[2:]]),
+        color=candle_edge,
+        linewidth=1.2,
+        alpha=0.55,
+        linestyle=(0, (3, 4)),
+        zorder=2,
+    )
+    ax.axvline(1.5, color=GRID, linewidth=1.1, linestyle=(0, (3, 4)), zorder=1)
+    ax.text(
+        0.5,
+        0.91,
+        "ACTUAL MARKET PRICE",
+        transform=ax.get_xaxis_transform(),
+        ha="center",
+        va="top",
+        fontsize=9.5,
+        fontweight="semibold",
+        color=BASELINE,
+    )
+    ax.text(
+        3.0,
+        0.91,
+        "DCF FORECAST",
+        transform=ax.get_xaxis_transform(),
+        ha="center",
+        va="top",
+        fontsize=9.5,
+        fontweight="semibold",
+        color=RED,
+    )
+
+    baseline_value = np.median(base_price)
+    ax.axhline(
+        baseline_value,
+        color=baseline_color,
+        linewidth=1.4,
+        linestyle=(0, (5, 5)),
+        alpha=0.85,
+        zorder=1,
+    )
+    ax.text(
+        x[-1] + 0.53,
+        baseline_value,
+        f"BASE  ${baseline_value:.2f}",
+        ha="left",
+        va="center",
+        fontsize=10,
+        fontweight="semibold",
+        color=chart_bg,
+        bbox={
+            "facecolor": baseline_color,
+            "edgecolor": baseline_color,
+            "boxstyle": "round,pad=0.28",
+        },
+        zorder=7,
+    )
+    ax.text(
+        x[-1] + 0.53,
+        p50_values[-1],
+        f"P50  ${p50_values[-1]:.2f}",
+        ha="left",
+        va="center",
+        fontsize=11,
+        fontweight="semibold",
+        color=BG,
+        bbox={
+            "facecolor": candle_fill,
+            "edgecolor": candle_edge,
+            "boxstyle": "round,pad=0.30",
+        },
+        zorder=7,
+    )
+
+    ax.set_xticks(x, YEARS)
+    ax.set_xlim(-0.65, N_YEARS - 0.05)
+    all_lows = np.concatenate([actual_low, p10[2:]])
+    all_highs = np.concatenate([actual_high, p90[2:]])
+    ax.set_ylim(max(0, all_lows.min() - 5), all_highs.max() + 7)
+    ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
+    ax.yaxis.set_major_formatter(mtick.StrMethodFormatter("${x:.0f}"))
+    ax.set_ylabel("Share price / modeled intrinsic value", color=chart_text, labelpad=14)
+    ax.tick_params(colors=chart_text, length=0, pad=8)
+    ax.grid(True, color=chart_grid, alpha=0.38, linewidth=0.7)
+    ax.grid(False, axis="x")
+    for spine in ax.spines.values():
+        spine.set_color(chart_grid)
+        spine.set_linewidth(1.0)
+    ax.set_title(
+        "Actual Share Price to DCF Valuation Range",
+        fontsize=17,
+        fontweight="semibold",
+        color=chart_text,
+        pad=18,
+    )
+    fig.suptitle(
+        "Chipotle Intrinsic Share Value",
+        fontsize=23,
+        fontweight="semibold",
+        color=chart_text,
+        y=0.985,
+    )
+    fig.tight_layout(rect=[0.03, 0.03, 0.98, 0.93])
+    fig.savefig(
+        "intrinsic_value_candlestick.png",
+        dpi=300,
+        facecolor=fig.get_facecolor(),
+    )
     plt.close(fig)
 
 
@@ -864,14 +1661,37 @@ def main():
 
     print_results(baseline, strategy, base_ev, strat_ev, base_price, strat_price)
 
+    save_international_expansion_chart()
+    save_burrito_bank_float_chart()
     save_revenue_graph(baseline[0], strategy[0])
     save_profit_graph(baseline[1], strategy[1])
+    save_probability_curve(baseline[1], strategy[1])
+    save_probability_curve(
+        baseline[1],
+        strategy[1],
+        filename="probability_curve_square.png",
+        figsize=(9, 9),
+    )
+    save_outcome_scorecard(baseline, strategy, base_ev, strat_ev)
+    save_strategy_waterfall(baseline[0], strategy[0])
+    save_margin_expansion_graph(
+        baseline[0], baseline[1], strategy[0], strategy[1]
+    )
+    save_intrinsic_value_candlestick(strategy[3], base_price)
     save_ev_graph(base_ev, strat_ev, base_price, strat_price, baseline[3], strategy[3])
     save_summary_graph(baseline, strategy, base_ev, strat_ev)
 
     print("\nGraphs saved:")
+    print("  international_expansion_comparison.png")
+    print("  burrito_bank_float_revenue.png")
     print("  revenue_paths.png")
     print("  profit_distribution.png")
+    print("  probability_curve.png")
+    print("  probability_curve_square.png")
+    print("  outcome_scorecard.png")
+    print("  strategy_contribution_waterfall.png")
+    print("  operating_margin_expansion.png")
+    print("  intrinsic_value_candlestick.png")
     print("  enterprise_value_bridge.png")
     print("  final_results_summary.png")
 
